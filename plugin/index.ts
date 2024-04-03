@@ -4,7 +4,7 @@ import { RollupOptions } from "rollup";
 import { folderPatternToWouterPath, compareRoutesBySpecificity } from "./fileSystemRouting";
 
 import { parse as pathToRegex } from "regexparam";
-import { dirname, isAbsolute, relative } from "node:path";
+import { dirname, isAbsolute, relative, basename, resolve, join as pathJoin } from "node:path";
 import { glob } from "glob";
 import { inspect } from "node:util";
 
@@ -18,14 +18,17 @@ interface Page {
 }
 
 async function fetchRoutes(routesDir: string) {
-  const files = await glob("/**/page.{ts,js}?(x)", {
-    root: routesDir,
+  const files = await glob("./**/page.{ts,js}?(x)", {
+    cwd: routesDir,
+    absolute: false,
+    posix: true, // always use "/" as path separator
   });
 
-  const pages: Page[] = files.map((source) => {
-    const folder = dirname(relative(routesDir, source));
+  const pages: Page[] = files.map((file) => {
+    const folder = dirname("/" + file);
+    const source = resolve(pathJoin(routesDir, file));
 
-    const [pattern, meta] = folderPatternToWouterPath("/" + folder);
+    const [pattern, meta] = folderPatternToWouterPath(folder);
     const { keys: params, pattern: regexp } = pathToRegex(pattern);
 
     // if pattern has a wildcard, rename this parameter, e.g. [[name]]
@@ -68,6 +71,8 @@ export default function wouterRoutesPlugin({ routesDir }: PluginOptions = {}): P
   if (!isAbsolute(routesDir)) {
     routesDir = relative(process.cwd(), routesDir);
   }
+
+  routesDir = resolve(routesDir);
 
   return {
     name: "wouter-routes-plugin",
