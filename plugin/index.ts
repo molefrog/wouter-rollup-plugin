@@ -62,8 +62,6 @@ interface PluginOptions {
 }
 
 export default function wouterRoutesPlugin({ routesDir }: PluginOptions = {}): Plugin {
-  let pages: Page[] = [];
-
   if (routesDir === undefined) {
     routesDir = "routes";
   }
@@ -87,10 +85,6 @@ export default function wouterRoutesPlugin({ routesDir }: PluginOptions = {}): P
     async buildStart() {
       // watch for new pages added
       this.addWatchFile(routesDir);
-
-      pages = await fetchRoutes(routesDir);
-      this.debug(`Discovered ${pages.length} pages`);
-      this.debug(inspect(pages));
     },
 
     watchChange(id, change) {
@@ -106,9 +100,16 @@ export default function wouterRoutesPlugin({ routesDir }: PluginOptions = {}): P
     load: {
       order: "pre",
       async handler(id) {
-        if (id === ID) {
-          const src = `
-import React, { createElement } from "react";
+        if (id !== ID) {
+          return;
+        }
+
+        const pages = await fetchRoutes(routesDir);
+        this.debug(`Discovered ${pages.length} pages`);
+        this.debug(inspect(pages));
+
+        const src = `
+import { createElement } from "react";
 import { Route, Switch } from "wouter";
 
 ${pages
@@ -131,8 +132,7 @@ ${pages
   });
 }
 `;
-          return src;
-        }
+        return src;
       },
     },
   };
